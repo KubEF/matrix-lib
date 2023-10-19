@@ -32,9 +32,12 @@ ghc-options:
   - -Wmissing-home-modules
   - -Wpartial-fields
   - -Wredundant-constraints
+  - -package template-haskell
 
 library:
   source-dirs: src
+
+language: GHC2021
 
 executables:
   matrix-lib-proj-exe:

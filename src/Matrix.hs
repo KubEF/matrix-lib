@@ -11,14 +11,11 @@ module Matrix where
 [X] map (ну, fmap)
 [X] filter
 -}
-newtype Matrix a = Matrix [[a]] deriving (Foldable, Traversable,Eq) 
-
-
+newtype Matrix a = Matrix [[a]] deriving (Foldable, Traversable, Eq)
 
 instance (Show a) => Show (Matrix a) where
     show :: Matrix a -> String
     show (Matrix x) = concatMap (("\n" ++) . show) x ++ "\n"
-
 
 maybeFunc2 :: (t1 -> t2 -> b) -> Maybe t1 -> Maybe t2 -> Maybe b
 maybeFunc2 f x y = x >>= (\a -> y >>= (Just . f a))
@@ -29,8 +26,8 @@ maybeFilter predicate (Just a)
     | predicate a = Just a
     | otherwise = Nothing
 
-map2 :: (a1 -> a2 -> b) -> Matrix a1 -> Matrix a2 -> Matrix b
-map2 func x y = fmap func x <*> y
+-- map2 :: (a1 -> a2 -> b) -> Matrix a1 -> Matrix a2 -> Matrix b
+-- map2 func x y = fmap func x <*> y
 
 filterMMaybe :: (a -> Bool) -> Matrix (Maybe a) -> Matrix (Maybe a)
 filterMMaybe predicate (Matrix a) = Matrix [map (maybeFilter predicate) line | line <- a]
