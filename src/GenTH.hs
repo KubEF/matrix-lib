@@ -2,10 +2,8 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Main where
+module GenTH where
 
-import GenTH ()
-import Matrix ()
+import MatrixMapNTH
 
-main :: IO ()
-main = putStrLn "HI"
+$(genMaps 10)

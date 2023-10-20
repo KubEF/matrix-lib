@@ -1,8 +1,7 @@
--- {-# OPTIONS_GHC -Wno-missing-export-lists #-}
-
 module Main where
 
-import Matrix (Matrix (Matrix), map2)
+import GenTH
+import Matrix
 import System.Exit as Exit
 import Test.HUnit (
     Counts (failures),
