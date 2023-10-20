@@ -2,7 +2,7 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Main (main) where
+module Main where
 
 import Matrix ()
 import MatrixMapNTH
