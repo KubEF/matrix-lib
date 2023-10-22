@@ -41,17 +41,12 @@ instance Functor Matrix where
 
 instance Applicative Matrix where
     pure :: a -> Matrix a
-    pure a = Matrix [[a]]
-
+    pure a = Matrix (repeat $ repeat a)
     (<*>) :: Matrix (a -> b) -> Matrix a -> Matrix b
-    (<*>) (Matrix funcs) (Matrix elems) = Matrix (helper funcs elems)
-        where
-            helper (f : fs) (x : xs) = overlay f x : helper fs xs
-            helper _ _ = []
+    (<*>) (Matrix funcs) (Matrix elems) = Matrix (zipWith overlay funcs elems)
 
 overlay :: [t -> a] -> [t] -> [a]
-overlay (x : xs) (y : ys) = x y : overlay xs ys
-overlay _ _ = []
+overlay = zipWith ($)
 
 biQuadMatrix :: a -> Matrix a
 biQuadMatrix x = Matrix [[x, x], [x, x]]
