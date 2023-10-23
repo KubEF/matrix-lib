@@ -17,23 +17,8 @@ instance (Show a) => Show (Matrix a) where
     show :: Matrix a -> String
     show (Matrix x) = concatMap (("\n" ++) . show) x ++ "\n"
 
-maybeFunc2 :: (t1 -> t2 -> b) -> Maybe t1 -> Maybe t2 -> Maybe b
-maybeFunc2 f x y = x >>= (\a -> y >>= (Just . f a))
-
-maybeFilter :: (a -> Bool) -> Maybe a -> Maybe a
-maybeFilter _ Nothing = Nothing
-maybeFilter predicate (Just a)
-    | predicate a = Just a
-    | otherwise = Nothing
-
--- map2 :: (a1 -> a2 -> b) -> Matrix a1 -> Matrix a2 -> Matrix b
--- map2 func x y = fmap func x <*> y
-
-filterMMaybe :: (a -> Bool) -> Matrix (Maybe a) -> Matrix (Maybe a)
-filterMMaybe predicate (Matrix a) = Matrix [map (maybeFilter predicate) line | line <- a]
-
-filterM :: (a -> Bool) -> Matrix a -> Matrix a
-filterM predicate (Matrix a) = Matrix [filter predicate line | line <- a]
+filterMatrix :: (a -> Bool) -> Matrix a -> Matrix a
+filterMatrix predicate (Matrix a) = Matrix [filter predicate line | line <- a]
 
 instance Functor Matrix where
     fmap :: (a -> b) -> Matrix a -> Matrix b
@@ -43,7 +28,7 @@ instance Applicative Matrix where
     pure :: a -> Matrix a
     pure a = Matrix (repeat $ repeat a)
     (<*>) :: Matrix (a -> b) -> Matrix a -> Matrix b
-    (<*>) (Matrix funcs) (Matrix elems) = Matrix (zipWith overlay funcs elems)
+    (Matrix funcs) <*> (Matrix elems) = Matrix (zipWith overlay funcs elems)
 
 overlay :: [t -> a] -> [t] -> [a]
 overlay = zipWith ($)
@@ -72,6 +57,21 @@ scalarMult v1 v2 = if length v1 /= length v2 then error "length of vectors are n
 
 multiplyM :: (Num a) => Matrix a -> Matrix a -> Matrix a
 multiplyM (Matrix a) (Matrix b) = Matrix [map scalarMult (getAllColumns (Matrix b)) <*> [line] | line <- a]
+
+-- сделал при помощи TH, там реализация точно такая же
+-- map2 :: (a1 -> a2 -> b) -> Matrix a1 -> Matrix a2 -> Matrix b
+-- map2 func x y = fmap func x <*> y
+
+-- видимо не нужно, Matrix уже помечен как Traversable
+-- maybeFunc2 :: (t1 -> t2 -> b) -> Maybe t1 -> Maybe t2 -> Maybe b
+-- maybeFunc2 f x y = x >>= (\a -> y >>= (Just . f a))
+-- maybeFilter :: (a -> Bool) -> Maybe a -> Maybe a
+-- maybeFilter _ Nothing = Nothing
+-- maybeFilter predicate (Just a)
+--     | predicate a = Just a
+--     | otherwise = Nothing
+-- filterMMaybe :: (a -> Bool) -> Matrix (Maybe a) -> Matrix (Maybe a)
+-- filterMMaybe predicate (Matrix a) = Matrix [map (maybeFilter predicate) line | line <- a]
 
 -- unionMatrix :: [Matrix a] -> Matrix a
 -- unionMatrix [] = Matrix [[]]
