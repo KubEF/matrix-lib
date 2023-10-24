@@ -1,9 +1,10 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module MatrixMapNTH(genMaps) where
+module MatrixMapNTH (genEasyFunc, genMaps, genThroughFunc) where
 
 import Control.Monad (replicateM)
 import Language.Haskell.TH
+import Matrix
 
 mapN :: Int -> Q Dec
 mapN n
@@ -44,7 +45,7 @@ genMaps n = do
     masDec <- mapM (\x -> sequence [mapNSignature x, mapN x]) [2 .. n]
     return $ concat masDec
 
--- sumOfKMatrix k 
+-- sumOfKMatrix k
 --     | k < 2 = fail "You can`t sum less then 2 matrix"
 --     | otherwise = funD name [cl1]
 --     where
@@ -52,7 +53,33 @@ genMaps n = do
 --         cl1 = do
 --             clause [_] (_) []
 
-
 makeFunc :: (Quote m) => [m Type] -> m Type
 makeFunc = foldr1 (appT . appT arrowT)
 -- makeFunc [varT a1, varT a2, varT a3] = a1 -> a2 -> a3
+
+
+genThroughFunc :: Int -> Q [Dec]
+genThroughFunc k = sequenceA [funD name [cl1, cl2]]
+    where
+        name = mkName $ "through" ++ show k
+        cl1 = do
+            let xListStr = ['x' : show n | n <- [1 .. k]]
+            let xList = map mkName xListStr
+            let xsList = map (\x -> mkName $ x ++ "s") xListStr
+            function <- newName "f"
+            let pat = [[p|($(varP x) : $(varP xs))|] | (x, xs) <- (zip xList xsList)]
+            let calculate = foldl (\acc x -> [|$acc + $(varE x)|]) (varE $ head xList) (tail xList) :: Q Exp
+            let remains = foldl (\acc xs -> [|$acc $(varE xs)|]) (varE name) xsList :: Q Exp
+            let body = [|$calculate : $remains|]
+            clause pat (normalB body) []
+        cl2 = do
+            let wilds = replicate k wildP :: [Q Pat]
+            clause wilds (normalB [|[]|]) []
+
+genEasyFunc :: Q [Dec]
+genEasyFunc = sequenceA [funD name [cl1]]
+    where
+        name = mkName "easyFunc"
+        cl1 = do
+            let argPatt = [[p|Matrix ((x : xs) : otherLines)|]] :: [Q Pat]
+            clause argPatt (normalB [|x|]) []
