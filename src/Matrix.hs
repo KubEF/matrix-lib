@@ -4,6 +4,7 @@
 
 module Matrix where
 
+
 {- TODO:
 [X] multiply
 [X] взятие подматрицы
@@ -46,20 +47,27 @@ subMatrix startColInd endColInd startLineInd endLineInd (Matrix a) =
 takeColumnM :: Int -> Matrix b -> [b]
 takeColumnM columnI (Matrix a) = map (!! columnI) a
 
+getLength :: Matrix a -> Int
+getLength (Matrix a) = maximum [length line | line <- a]
+
 getAllColumns :: Matrix b -> [[b]]
-getAllColumns (Matrix a) = [col | n <- [0 .. (length a - 1)], col <- [takeColumn n a]]
+getAllColumns m@(Matrix a) = [col | n <- [0 .. getLength m - 1], col <- [takeColumn n a]]
     where
         takeColumn :: Int -> [[b]] -> [b]
         takeColumn columnI = map (!! columnI)
+
+transpose :: Matrix a -> Matrix a
+transpose matrix = Matrix $ getAllColumns matrix
 
 scalarMult :: (Num a) => [a] -> [a] -> a
 scalarMult v1 v2 = if length v1 /= length v2 then error "length of vectors are not equal" else sum $ zipWith (*) v1 v2
 
 multiplyM :: (Num a) => Matrix a -> Matrix a -> Matrix a
-multiplyM (Matrix a) (Matrix b) = Matrix [map scalarMult (getAllColumns (Matrix b)) <*> [line] | line <- a]
+multiplyM (Matrix a) m2 = Matrix [map scalarMult (getAllColumns m2) <*> [line] | line <- a]
+
 
 -- сделал при помощи TH, там реализация точно такая же
--- map2 :: (a1 -> a2 -> b) -> Matrix a1 -> Matrix a2 -> Matrix b
+-- map2 :: Applicative f => (a1 -> a2 -> b) -> f a1 -> f a2 -> f b
 -- map2 func x y = fmap func x <*> y
 
 -- видимо не нужно, Matrix уже помечен как Traversable
