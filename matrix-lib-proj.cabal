@@ -29,6 +29,7 @@ library
       ListTH
       Matrix
       MatrixMapNTH
+      ParseMTX
   other-modules:
       Paths_matrix_lib_proj
   hs-source-dirs:
@@ -36,6 +37,7 @@ library
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
       base >=4.7 && <5
+    , deepseq
     , template-haskell
   default-language: GHC2021
 
@@ -48,6 +50,7 @@ executable matrix-lib-proj-exe
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , deepseq
     , matrix-lib-proj
     , template-haskell
   default-language: GHC2021
@@ -63,6 +66,24 @@ test-suite matrix-lib-proj-test
   build-depends:
       HUnit
     , base >=4.7 && <5
+    , deepseq
     , matrix-lib-proj
+    , template-haskell
+  default-language: GHC2021
+
+benchmark testing-bench
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  other-modules:
+      Paths_matrix_lib_proj
+  hs-source-dirs:
+      bench
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
+  build-depends:
+      base >=4.7 && <5
+    , criterion
+    , deepseq
+    , matrix-lib-proj
+    , random
     , template-haskell
   default-language: GHC2021

@@ -4,6 +4,7 @@
 
 module Matrix where
 
+import Control.DeepSeq
 
 {- TODO:
 [X] multiply
@@ -12,7 +13,7 @@ module Matrix where
 [X] map (ну, fmap)
 [X] filter
 -}
-newtype Matrix a = Matrix [[a]] deriving (Foldable, Traversable, Eq)
+newtype Matrix a = Matrix [[a]] deriving (Foldable, Traversable, Eq, NFData)
 
 instance (Show a) => Show (Matrix a) where
     show :: Matrix a -> String
@@ -64,7 +65,6 @@ scalarMult v1 v2 = if length v1 /= length v2 then error "length of vectors are n
 
 multiplyM :: (Num a) => Matrix a -> Matrix a -> Matrix a
 multiplyM (Matrix a) m2 = Matrix [map scalarMult (getAllColumns m2) <*> [line] | line <- a]
-
 
 -- сделал при помощи TH, там реализация точно такая же
 -- map2 :: Applicative f => (a1 -> a2 -> b) -> f a1 -> f a2 -> f b

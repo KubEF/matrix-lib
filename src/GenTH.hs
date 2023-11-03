@@ -8,4 +8,4 @@ import MatrixMapNTH
 
 $(genMaps 10)
 
-$(genThroughFuncMatrix 3)
+$(genThroughFuncMatrix 4)
