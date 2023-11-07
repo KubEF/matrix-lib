@@ -30,6 +30,7 @@ library
       Matrix
       MatrixMapNTH
       ParseMTX
+      QuadTree
   other-modules:
       Paths_matrix_lib_proj
   hs-source-dirs:
