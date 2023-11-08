@@ -2,64 +2,22 @@
 
 module QuadTree where
 
+import Helpers
 import Matrix
 import ParseMTX
 
-data Unit a = Unit {value :: a, size :: Int} deriving (Show)
-
-instance (Eq a) => Eq (Unit a) where
-    (==) :: Unit a -> Unit a -> Bool
-    (==) (Unit v1 s1) (Unit v2 s2) = v1 == v2 && s1 == s2
-
--- instance (Show a) => Show (Unit a) where
---     show :: Unit a -> String
---     show (Unit value size) = unlines $ replicate size (show $ replicate size value)
-
 data QuadTree a
-    = Leaf (Unit (Maybe a))
+    = Leaf {value :: Maybe a, size :: Int}
     | Node {nw :: QuadTree a, ne :: QuadTree a, sw :: QuadTree a, se :: QuadTree a}
     deriving (Show)
 
--- countOfLeafs :: QuadTree a2 -> Int
--- countOfLeafs qt = case qt of
---     None -> 0
---     (Node nw ne sw se) -> countOfLeafs nw + countOfLeafs ne + countOfLeafs sw + countOfLeafs se
---     Leaf _ -> 1
-
-binFunc :: (a -> a -> a) -> QuadTree a -> QuadTree a -> QuadTree a
-binFunc f q1 q2 = case (q1, q2) of
-    (Leaf (Unit v1 s1), Leaf (Unit v2 s2)) ->
-        if s1 == s2
-            then case (v1, v2) of
-                (Nothing, Just _) -> Leaf $ Unit v2 s2
-                (Just _, Nothing) -> Leaf $ Unit v1 s1
-                (Nothing, Nothing) -> Leaf $ Unit Nothing s1
-                (Just w1, Just w2) -> Leaf $ Unit (Just $ w1 `f` w2) s1
-            else error "different size of leafs"
-    (Node nw1 ne1 sw1 se1, Node nw2 ne2 sw2 se2) ->
-        Node
-            (binFunc f nw1 nw2)
-            (binFunc f ne1 ne2)
-            (binFunc f sw1 sw2)
-            (binFunc f se1 se2)
-    (Node nw ne sw se, l@(Leaf _)) -> Node (binFunc f nw l) ne sw se
-    (l@(Leaf _), Node nw ne sw se) -> Node (binFunc f nw l) ne sw se
-
-anagrams :: [a] -> [a] -> [[a]]
-anagrams l1 l2 = case (l1, l2) of
-    ([], []) -> [[]]
-    (list1, []) -> map (head list1 :) (anagrams (tail list1) [])
-    ([], list2) -> map (head list2 :) (anagrams [] (tail list2))
-    (list1, list2) -> map (head list1 :) (anagrams (tail list1) list2) ++ map (head list2 :) (anagrams list1 (tail list2))
-
--- (Leaf, ..., Leaf) -> if s1 == s2 == ... == sn then
-
--- instance (Show a) => Show (QuadTree a) where
---     show (Node nw ne sw se) = show nw ++ " | " ++ show ne ++ "\n" ++ show sw ++ " | " ++ show se
---     show (Unit some) = init $ show some
-
-roundUp :: Double -> Int
-roundUp x = if x > toEnum (round x) then toEnum $ round x + 1 else toEnum $ round x
+instance (Eq a) => Eq (QuadTree a) where
+    (==) :: QuadTree a -> QuadTree a -> Bool
+    (==) q1 q2 = case (q1, q2) of
+        (Node nw1 ne1 sw1 se1, Node nw2 ne2 sw2 se2) -> (nw1 == nw2) && (ne1 == ne2) && (sw1 == sw2) && (se1 == se2)
+        (Leaf v1 s1, Leaf v2 s2) -> (v1 == v2) && (s1 == s2)
+        (Node{}, Leaf{}) -> False
+        (Leaf{}, Node{}) -> False
 
 -- upper matrix to quad with Nothing at nonexisitings places
 toQuad :: Matrix (Maybe a) -> Matrix (Maybe a)
@@ -93,8 +51,6 @@ tablePartition (Matrix b) =
         sizeLines = roundUp (fromRational $ toRational (length b) / 2)
         sizeColumns = roundUp (fromRational $ toRational (length $ head b) / 2)
 
--- roundUp x y = x `div` y + x `mod` y
-
 -- toQuadTreeFromTableMatrix :: (Eq a) => Matrix (Maybe a) -> QuadTree (Maybe a)
 -- toQuadTreeFromTableMatrix m
 --     | null matrix = None
@@ -113,9 +69,9 @@ tablePartition (Matrix b) =
 
 reduce :: (Eq a) => QuadTree a -> QuadTree a
 reduce quadTreeNode = case quadTreeNode of
-    (Node (Leaf nw) (Leaf ne) (Leaf sw) (Leaf se)) ->
+    (Node nw ne sw se) ->
         if nw == ne && ne == sw && sw == se && se == nw
-            then Leaf $ Unit (value nw) (2 * size nw)
+            then Leaf (value nw) (2 * size nw)
             else quadTreeNode
     _ -> quadTreeNode
 
@@ -128,22 +84,19 @@ mtxFormatPartition mtx@(Mtx values rows columns)
         halfColumns = roundUp $ fromRational (toRational columns / 2)
         inner lst nw' ne' sw' se' = case lst of
             [] -> (nw', ne', sw', se')
-            ((i, j, value) : tl) ->
-                if i <= halfRows && j <= halfColumns
-                    then inner tl ((i, j, value) : nw') ne' sw' se'
-                    else
-                        if i <= halfRows && j > halfColumns
-                            then inner tl nw' ((i, j - halfColumns, value) : ne') sw' se'
-                            else
-                                if i > halfRows && j <= halfColumns
-                                    then inner tl nw' ne' ((i - halfRows, j, value) : sw') se'
-                                    else inner tl nw' ne' sw' ((i - halfRows, j - halfRows, value) : se')
+            ((i, j, value) : tl) -> helper i j value tl
+            where
+                helper i j value tl
+                    | i <= halfRows && j <= halfColumns = inner tl ((i, j, value) : nw') ne' sw' se'
+                    | i <= halfRows && j > halfColumns = inner tl nw' ((i, j - halfColumns, value) : ne') sw' se'
+                    | i > halfRows && j <= halfColumns = inner tl nw' ne' ((i - halfRows, j, value) : sw') se'
+                    | otherwise = inner tl nw' ne' sw' ((i - halfRows, j - halfRows, value) : se')
         (nw, ne, sw, se) = inner values [] [] [] []
 
 toQuadTreeFromMtxFormat :: (Eq a) => MtxSparseFormat a -> QuadTree a
 toQuadTreeFromMtxFormat (Mtx values rows columns)
-    | rows == 0 && columns == 0 = Leaf $ Unit Nothing 1
-    | rows == 1 && columns == 1 && not (null values) = Leaf $ Unit (Just $ takeThrd $ head values) 1
+    | rows == 0 && columns == 0 = Leaf Nothing 1
+    | rows == 1 && columns == 1 && not (null values) = Leaf (Just $ takeThrd $ head values) 1
     | otherwise = inner $ Mtx values powerSize powerSize
     where
         powerSize = 2 ^ roundUp (logBase 2 (toEnum $ max rows columns))
@@ -155,17 +108,34 @@ toQuadTreeFromMtxFormat (Mtx values rows columns)
                 && length values' == 1
                 && takeFst (head values') <= maxRowIndex
                 && takeSnd (head values') <= maxColumnIndex =
-                Leaf $ Unit (Just $ takeThrd $ head values') 1
-            | null values' = Leaf $ Unit Nothing (2 ^ roundUp (logBase 2 (toEnum $ max rows' columns')))
+                Leaf (Just $ takeThrd $ head values') 1
+            | null values' = Leaf Nothing powerSize'
             | otherwise = reduce $ Node (inner nw) (inner ne) (inner sw) (inner se)
             where
                 (nw, ne, sw, se) = mtxFormatPartition mtx'
+                powerSize' = 2 ^ roundUp (logBase 2 (toEnum $ max rows' columns'))
+
+binFunc :: (a -> a -> a) -> QuadTree a -> QuadTree a -> QuadTree a
+binFunc f q1 q2 = case (q1, q2) of
+    (Leaf v1 s1, Leaf v2 s2) ->
+        if s1 == s2
+            then case (v1, v2) of
+                (Nothing, Just w2) -> Leaf (Just w2) s1
+                (Just w1, Nothing) -> Leaf (Just w1) s1
+                (Nothing, Nothing) -> Leaf Nothing s1
+                (Just w1, Just w2) -> Leaf (Just $ w1 `f` w2) s1
+            else error "different size of leafs"
+    (Node nw1 ne1 sw1 se1, Node nw2 ne2 sw2 se2) ->
+        Node
+            (binFunc f nw1 nw2)
+            (binFunc f ne1 ne2)
+            (binFunc f sw1 sw2)
+            (binFunc f se1 se2)
+    (Node nw ne sw se, l@(Leaf{})) -> Node (binFunc f nw l) ne sw se
+    (l@(Leaf{}), Node nw ne sw se) -> Node (binFunc f nw l) ne sw se
 
 readAndPrintMatrix :: String -> IO ()
 readAndPrintMatrix path = do
-    -- m1 <- readFuncToMatrix path
-    -- let matrix = Matrix m1
-    --     quadMatrix = toQuadTreeFromTableMatrix (fmap Just matrix)
     m <- readFuncToMtxFormat path
     let quadMatrix = toQuadTreeFromMtxFormat m
         summ = binFunc (+) quadMatrix quadMatrix

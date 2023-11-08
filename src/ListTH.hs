@@ -49,27 +49,54 @@ genZipWithN k = sequenceA [sigD name typ, funD name [cl1, cl2]]
         cl1 = do
             function <- newName "f"
             let pat = (varP function) : [[p|($(varP x) : $(varP xs))|] | (x, xs) <- (zip xList xsList)]
-            let calculate =
+                calculate =
                     foldl
                         (\acc x -> [|$acc $(varE x)|])
                         (varE function)
                         xList
                         :: Q Exp
-            let remains = foldl (\acc xs -> [|$acc $(varE xs)|]) (appE (varE name) (varE function)) xsList :: Q Exp
-            let body = [|$calculate : $remains|]
+                remains = foldl (\acc xs -> [|$acc $(varE xs)|]) (appE (varE name) (varE function)) xsList :: Q Exp
+                body = [|$calculate : $remains|]
             clause pat (normalB body) []
         cl2 = do
             let wilds = replicate (k + 1) wildP :: [Q Pat]
             clause wilds (normalB [|[]|]) []
         typ = do
             let resT = varT $ mkName "r"
-            let fun = makeFunc $ [varT x | x <- xList] ++ [resT]
-            let lists = [[t|[$(varT x)]|] | x <- xList]
+                fun = makeFunc $ [varT x | x <- xList] ++ [resT]
+                lists = [[t|[$(varT x)]|] | x <- xList]
             makeFunc $ fun : lists ++ [[t|[$resT]|]]
 
 generateZipWithTok :: Int -> Q [Dec]
 generateZipWithTok k = do
     ls <- mapM genZipWithN [2 .. k]
+    return $ concat ls
+
+genListToTuple :: Int -> Q [Dec]
+genListToTuple k = sequenceA [sigD name typ, funD name [cl1]]
+    where
+        name = mkName $ "listToTuple" ++ show k
+        listName = mkName "list"
+        listExp = varE listName :: Q Exp
+        listPat = varP listName :: Q Pat
+        xNames = [mkName $ "x" ++ show x | x <- [1 .. k]]
+        xPat = map varP xNames :: [Q Pat]
+        xExp = map varE xNames :: [Q Exp]
+        cl1 = do
+            let patList = listPat
+                matches =
+                    match (listP (take k xPat)) (normalB (tupE (take k xExp))) []
+                        : [match wildP (normalB [|error "you can not do tuple with this input"|]) []]
+                        :: [Q Match]
+                body = caseE listExp matches
+            clause [patList] (normalB body) []
+        typ = do
+            let tuple = foldl appT (tupleT k) (replicate k (varT $ mkName "a"))
+            makeFunc [[t|[$(varT $ mkName "a")]|], tuple]
+
+genListToTupleFrom2ToK :: Int -> Q [Dec]
+genListToTupleFrom2ToK k = do
+    ls <- mapM genListToTuple [2 .. k]
     return $ concat ls
 
 makeFunc :: (Quote m) => [m Type] -> m Type

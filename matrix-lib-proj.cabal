@@ -26,11 +26,13 @@ source-repository head
 library
   exposed-modules:
       GenTH
+      Helpers
       ListTH
       Matrix
       MatrixMapNTH
       ParseMTX
       QuadTree
+      QuadTreeTH
   other-modules:
       Paths_matrix_lib_proj
   hs-source-dirs:
