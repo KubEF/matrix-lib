@@ -15,7 +15,10 @@ instance (Eq a) => Eq (Unit a) where
 --     show :: Unit a -> String
 --     show (Unit value size) = unlines $ replicate size (show $ replicate size value)
 
-data QuadTree a = Leaf (Unit (Maybe a)) | Node {nw :: QuadTree a, ne :: QuadTree a, sw :: QuadTree a, se :: QuadTree a} deriving (Show)
+data QuadTree a
+    = Leaf (Unit (Maybe a))
+    | Node {nw :: QuadTree a, ne :: QuadTree a, sw :: QuadTree a, se :: QuadTree a}
+    deriving (Show)
 
 -- countOfLeafs :: QuadTree a2 -> Int
 -- countOfLeafs qt = case qt of
@@ -55,7 +58,7 @@ anagrams l1 l2 = case (l1, l2) of
 --     show (Node nw ne sw se) = show nw ++ " | " ++ show ne ++ "\n" ++ show sw ++ " | " ++ show se
 --     show (Unit some) = init $ show some
 
-roundUp :: (RealFrac a1, Enum a1, Enum a2) => a1 -> a2
+roundUp :: Double -> Int
 roundUp x = if x > toEnum (round x) then toEnum $ round x + 1 else toEnum $ round x
 
 -- upper matrix to quad with Nothing at nonexisitings places
@@ -87,8 +90,8 @@ tablePartition (Matrix b) =
     , Matrix $ map (drop sizeColumns) (drop sizeLines b)
     ]
     where
-        sizeLines = roundUp (toRational (length b) / 2)
-        sizeColumns = roundUp (toRational (length $ head b) / 2)
+        sizeLines = roundUp (fromRational $ toRational (length b) / 2)
+        sizeColumns = roundUp (fromRational $ toRational (length $ head b) / 2)
 
 -- roundUp x y = x `div` y + x `mod` y
 
@@ -121,8 +124,8 @@ mtxFormatPartition mtx@(Mtx values rows columns)
     | columns == 0 || rows == 0 = (mtx, mtx, mtx, mtx)
     | otherwise = (Mtx nw halfRows halfColumns, Mtx ne halfRows halfColumns, Mtx sw halfRows halfColumns, Mtx se halfRows halfColumns)
     where
-        halfRows = roundUp (toRational rows / 2)
-        halfColumns = roundUp (toRational columns / 2)
+        halfRows = roundUp $ fromRational (toRational rows / 2)
+        halfColumns = roundUp $ fromRational (toRational columns / 2)
         inner lst nw' ne' sw' se' = case lst of
             [] -> (nw', ne', sw', se')
             ((i, j, value) : tl) ->

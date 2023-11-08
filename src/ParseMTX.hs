@@ -25,7 +25,7 @@ takeThrd (_, _, c) = c
 takeFst :: (a, b, c) -> a
 takeFst (a, _, _) = a
 
-fillInfo :: (Num c) => [(Int, Int, c)] -> [[c]] -> [[c]]
+fillInfo :: [(Int, Int, c)] -> [[c]] -> [[c]]
 fillInfo info voidList = zipWith forLines voidList [1 .. length voidList]
     where
         findThreeByFirst element = filter (\(f, _, _) -> f == element)
