@@ -2,7 +2,6 @@
 
 module QuadTree where
 
-import Data.Maybe
 import Matrix
 import ParseMTX
 
@@ -16,54 +15,24 @@ instance (Eq a) => Eq (Unit a) where
 --     show :: Unit a -> String
 --     show (Unit value size) = unlines $ replicate size (show $ replicate size value)
 
-data QuadTree a = None | Leaf (Unit a) | Node {nw :: QuadTree a, ne :: QuadTree a, sw :: QuadTree a, se :: QuadTree a} deriving (Show)
+data QuadTree a = Leaf (Unit (Maybe a)) | Node {nw :: QuadTree a, ne :: QuadTree a, sw :: QuadTree a, se :: QuadTree a} deriving (Show)
 
-countOfLeafs :: QuadTree a2 -> Int
-countOfLeafs qt = case qt of
-    None -> 0
-    (Node nw ne sw se) -> countOfLeafs nw + countOfLeafs ne + countOfLeafs sw + countOfLeafs se
-    Leaf _ -> 1
+-- countOfLeafs :: QuadTree a2 -> Int
+-- countOfLeafs qt = case qt of
+--     None -> 0
+--     (Node nw ne sw se) -> countOfLeafs nw + countOfLeafs ne + countOfLeafs sw + countOfLeafs se
+--     Leaf _ -> 1
 
-binFunc :: (Integral (Unit t), Eq t) => (t -> t -> t) -> QuadTree t -> QuadTree t -> QuadTree t
+binFunc :: (a -> a -> a) -> QuadTree a -> QuadTree a -> QuadTree a
 binFunc f q1 q2 = case (q1, q2) of
-    (None, None) -> None
-    (None, Leaf un) ->
-        if size un == 1
-            then Leaf un
-            else
-                Node
-                    (binFunc f None (Leaf $ Unit (value un) (size un) `div` 2))
-                    (Leaf $ Unit (value un) (size un) `div` 2)
-                    (Leaf $ Unit (value un) (size un) `div` 2)
-                    (Leaf $ Unit (value un) (size un) `div` 2)
-    (Leaf un, None) ->
-        if size un == 1
-            then Leaf un
-            else
-                Node
-                    (binFunc f (Leaf $ Unit (value un) (size un) `div` 2) None)
-                    (Leaf $ Unit (value un) (size un) `div` 2)
-                    (Leaf $ Unit (value un) (size un) `div` 2)
-                    (Leaf $ Unit (value un) (size un) `div` 2)
-    (None, node@(Node{})) -> node
-    (node@(Node{}), None) -> node
-    (l1@(Leaf (Unit v1 s1)), l2@(Leaf (Unit v2 s2))) ->
+    (Leaf (Unit v1 s1), Leaf (Unit v2 s2)) ->
         if s1 == s2
-            then Leaf (Unit (v1 `f` v2) s1)
-            else
-                if s1 > s2
-                    then
-                        Node
-                            (binFunc f (Leaf $ Unit v1 (s1 `div` 2)) l2)
-                            (Leaf $ Unit v1 (s1 `div` 2))
-                            (Leaf $ Unit v1 (s1 `div` 2))
-                            (Leaf $ Unit v1 (s1 `div` 2))
-                    else
-                        Node
-                            (binFunc f l1 (Leaf $ Unit v2 (s2 `div` 2)))
-                            (Leaf $ Unit v2 (s2 `div` 2))
-                            (Leaf $ Unit v2 (s2 `div` 2))
-                            (Leaf $ Unit v2 (s2 `div` 2))
+            then case (v1, v2) of
+                (Nothing, Just _) -> Leaf $ Unit v2 s2
+                (Just _, Nothing) -> Leaf $ Unit v1 s1
+                (Nothing, Nothing) -> Leaf $ Unit Nothing s1
+                (Just w1, Just w2) -> Leaf $ Unit (Just $ w1 `f` w2) s1
+            else error "different size of leafs"
     (Node nw1 ne1 sw1 se1, Node nw2 ne2 sw2 se2) ->
         Node
             (binFunc f nw1 nw2)
@@ -72,6 +41,15 @@ binFunc f q1 q2 = case (q1, q2) of
             (binFunc f se1 se2)
     (Node nw ne sw se, l@(Leaf _)) -> Node (binFunc f nw l) ne sw se
     (l@(Leaf _), Node nw ne sw se) -> Node (binFunc f nw l) ne sw se
+
+anagrams :: [a] -> [a] -> [[a]]
+anagrams l1 l2 = case (l1, l2) of
+    ([], []) -> [[]]
+    (list1, []) -> map (head list1 :) (anagrams (tail list1) [])
+    ([], list2) -> map (head list2 :) (anagrams [] (tail list2))
+    (list1, list2) -> map (head list1 :) (anagrams (tail list1) list2) ++ map (head list2 :) (anagrams list1 (tail list2))
+
+-- (Leaf, ..., Leaf) -> if s1 == s2 == ... == sn then
 
 -- instance (Show a) => Show (QuadTree a) where
 --     show (Node nw ne sw se) = show nw ++ " | " ++ show ne ++ "\n" ++ show sw ++ " | " ++ show se
@@ -114,25 +92,24 @@ tablePartition (Matrix b) =
 
 -- roundUp x y = x `div` y + x `mod` y
 
-toQuadTreeFromTableMatrix :: (Eq a) => Matrix (Maybe a) -> QuadTree (Maybe a)
-toQuadTreeFromTableMatrix m
-    | null matrix = None
-    | equals (head ll) && equals ll = if isNothing ((head . head) ll) then None else Leaf (toUnit matrix)
-    | otherwise =
-        Node
-            (toQuadTreeFromTableMatrix $ head quads)
-            (toQuadTreeFromTableMatrix $ quads !! 1)
-            (toQuadTreeFromTableMatrix $ quads !! 2)
-            (toQuadTreeFromTableMatrix $ quads !! 3)
-    where
-        matrix@(Matrix ll) = toQuad m
-        equals l = all (h ==) l where h = head l
-        quads = tablePartition matrix
-        toUnit (Matrix a) = Unit ((head . head) a) (length a)
+-- toQuadTreeFromTableMatrix :: (Eq a) => Matrix (Maybe a) -> QuadTree (Maybe a)
+-- toQuadTreeFromTableMatrix m
+--     | null matrix = None
+--     | equals (head ll) && equals ll = if isNothing ((head . head) ll) then None else Leaf (toUnit matrix)
+--     | otherwise =
+--         Node
+--             (toQuadTreeFromTableMatrix $ head quads)
+--             (toQuadTreeFromTableMatrix $ quads !! 1)
+--             (toQuadTreeFromTableMatrix $ quads !! 2)
+--             (toQuadTreeFromTableMatrix $ quads !! 3)
+--     where
+--         matrix@(Matrix ll) = toQuad m
+--         equals l = all (h ==) l where h = head l
+--         quads = tablePartition matrix
+--         toUnit (Matrix a) = Unit ((head . head) a) (length a)
 
 reduce :: (Eq a) => QuadTree a -> QuadTree a
 reduce quadTreeNode = case quadTreeNode of
-    (Node None None None None) -> None
     (Node (Leaf nw) (Leaf ne) (Leaf sw) (Leaf se)) ->
         if nw == ne && ne == sw && sw == se && se == nw
             then Leaf $ Unit (value nw) (2 * size nw)
@@ -162,8 +139,8 @@ mtxFormatPartition mtx@(Mtx values rows columns)
 
 toQuadTreeFromMtxFormat :: (Eq a) => MtxSparseFormat a -> QuadTree a
 toQuadTreeFromMtxFormat (Mtx values rows columns)
-    | rows == 0 && columns == 0 = None
-    | rows == 1 && columns == 1 && not (null values) = Leaf $ Unit (takeThrd $ head values) 1
+    | rows == 0 && columns == 0 = Leaf $ Unit Nothing 1
+    | rows == 1 && columns == 1 && not (null values) = Leaf $ Unit (Just $ takeThrd $ head values) 1
     | otherwise = inner $ Mtx values powerSize powerSize
     where
         powerSize = 2 ^ roundUp (logBase 2 (toEnum $ max rows columns))
@@ -175,18 +152,19 @@ toQuadTreeFromMtxFormat (Mtx values rows columns)
                 && length values' == 1
                 && takeFst (head values') <= maxRowIndex
                 && takeSnd (head values') <= maxColumnIndex =
-                Leaf $ Unit (takeThrd $ head values') 1
-            | null values' = None
+                Leaf $ Unit (Just $ takeThrd $ head values') 1
+            | null values' = Leaf $ Unit Nothing (2 ^ roundUp (logBase 2 (toEnum $ max rows' columns')))
             | otherwise = reduce $ Node (inner nw) (inner ne) (inner sw) (inner se)
             where
                 (nw, ne, sw, se) = mtxFormatPartition mtx'
 
 readAndPrintMatrix :: String -> IO ()
 readAndPrintMatrix path = do
-    m1 <- readFuncToMatrix path
+    -- m1 <- readFuncToMatrix path
     -- let matrix = Matrix m1
     --     quadMatrix = toQuadTreeFromTableMatrix (fmap Just matrix)
     m <- readFuncToMtxFormat path
     let quadMatrix = toQuadTreeFromMtxFormat m
-    print $ countOfLeafs quadMatrix
+        summ = binFunc (+) quadMatrix quadMatrix
     print quadMatrix
+    print summ
