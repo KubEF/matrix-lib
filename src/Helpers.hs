@@ -1,5 +1,5 @@
 module Helpers where
-import GenTH
+
 
 takeFst :: (a, b, c) -> a
 takeFst (a, _, _) = a

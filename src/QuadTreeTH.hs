@@ -67,4 +67,7 @@ ite thenBody elseBody sizesList =
                 [|$(head sizesList) == $(head $ tail sizesList)|]
                 (tail $ tail sizesList)
 
-
+-- generate zip by binary function expression, for example
+-- zipArgsByBin (+) [x1, x2, x3, x4] = x1 + x2 + x3 + x4
+zipArgsByBin :: (Quote m) => m Exp -> [m Exp] -> m Exp
+zipArgsByBin func = foldl1 (\acc x -> infixE (Just acc) func (Just x))
