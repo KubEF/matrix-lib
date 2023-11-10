@@ -1,3 +1,4 @@
+{-# LANGUAGE DatatypeContexts #-}
 {-# OPTIONS_GHC -Wno-partial-fields #-}
 
 module QuadTree where
@@ -7,7 +8,7 @@ import Matrix
 import ParseMTX
 
 data QuadTree a
-    = Leaf {value :: Maybe a, size :: Int}
+    = Leaf {value :: a, size :: Int}
     | Node {nw :: QuadTree a, ne :: QuadTree a, sw :: QuadTree a, se :: QuadTree a}
     deriving (Show)
 
@@ -93,7 +94,7 @@ mtxFormatPartition mtx@(Mtx values rows columns)
                     | otherwise = inner tl nw' ne' sw' ((i - halfRows, j - halfRows, value) : se')
         (nw, ne, sw, se) = inner values [] [] [] []
 
-toQuadTreeFromMtxFormat :: (Eq a) => MtxSparseFormat a -> QuadTree a
+toQuadTreeFromMtxFormat :: (Eq a) => MtxSparseFormat a -> QuadTree (Maybe a)
 toQuadTreeFromMtxFormat (Mtx values rows columns)
     | rows == 0 && columns == 0 = Leaf Nothing 1
     | rows == 1 && columns == 1 && not (null values) = Leaf (Just $ takeThrd $ head values) 1
@@ -115,29 +116,34 @@ toQuadTreeFromMtxFormat (Mtx values rows columns)
                 (nw, ne, sw, se) = mtxFormatPartition mtx'
                 powerSize' = 2 ^ roundUp (logBase 2 (toEnum $ max rows' columns'))
 
-binFunc :: (a -> a -> a) -> QuadTree a -> QuadTree a -> QuadTree a
+binFunc :: Eq a => (t -> t -> a) -> QuadTree t -> QuadTree t -> QuadTree a
 binFunc f q1 q2 = case (q1, q2) of
     (Leaf v1 s1, Leaf v2 s2) ->
         if s1 == s2
-            then case (v1, v2) of
-                (Nothing, Just w2) -> Leaf (Just w2) s1
-                (Just w1, Nothing) -> Leaf (Just w1) s1
-                (Nothing, Nothing) -> Leaf Nothing s1
-                (Just w1, Just w2) -> Leaf (Just $ w1 `f` w2) s1
+            then Leaf (v1 `f` v2) s1
             else error "different size of leafs"
     (Node nw1 ne1 sw1 se1, Node nw2 ne2 sw2 se2) ->
-        Node
-            (binFunc f nw1 nw2)
-            (binFunc f ne1 ne2)
-            (binFunc f sw1 sw2)
-            (binFunc f se1 se2)
-    (Node nw ne sw se, l@(Leaf{})) -> Node (binFunc f nw l) ne sw se
-    (l@(Leaf{}), Node nw ne sw se) -> Node (binFunc f nw l) ne sw se
+        reduce $
+            Node
+                (binFunc f nw1 nw2)
+                (binFunc f ne1 ne2)
+                (binFunc f sw1 sw2)
+                (binFunc f se1 se2)
+    (Node nw ne sw se, Leaf v1 s1) ->
+        reduce $
+            Node
+                (binFunc f nw (Leaf v1 s))
+                (binFunc f ne (Leaf v1 s))
+                (binFunc f sw (Leaf v1 s))
+                (binFunc f se (Leaf v1 s))
+            where 
+                s = s1 `div` 2
+    (Leaf v1 s1, Node nw ne sw se) ->
+        reduce $
+            Node
+                (binFunc f nw (Leaf v1 s))
+                (binFunc f ne (Leaf v1 s))
+                (binFunc f sw (Leaf v1 s))
+                (binFunc f se (Leaf v1 s))
+            where s = s1 `div` 2
 
-readAndPrintMatrix :: String -> IO ()
-readAndPrintMatrix path = do
-    m <- readFuncToMtxFormat path
-    let quadMatrix = toQuadTreeFromMtxFormat m
-        summ = binFunc (+) quadMatrix quadMatrix
-    print quadMatrix
-    print summ

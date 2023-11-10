@@ -2,11 +2,8 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module GenTH where
+module GenQuadTreeTH where
 
-import ListTH
-import MatrixMapNTH
+import QuadTreeTH (genBinFunc)
 
--- $(genMaps 10)
-
-$(genListToTupleFrom2ToK 62)
+$(genBinFunc 4)
