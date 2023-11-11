@@ -7,13 +7,7 @@ import System.IO
 
 data MtxSparseFormat a = Mtx {values :: [(Int, Int, a)], linesCount :: Int, columnCount :: Int} deriving (Show)
 
-readSpecDouble :: String -> Double
-readSpecDouble a
-    | head a == '.' = read ('0' : a)
-    | head a == '-' && (a !! 1) == '.' = read ("-0" ++ tail a)
-    | head a == 'e' = read ('1' : a)
-    | head a == '-' && (a !! 1) == 'e' = read ("-1" ++ tail a)
-    | otherwise = read a
+
 
 generateVoid :: (Num a) => (Int, Int, c) -> [[a]]
 generateVoid (mLines, columns, _) = replicate mLines (replicate columns 0)

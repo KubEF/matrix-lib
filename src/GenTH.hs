@@ -5,7 +5,7 @@
 module GenTH where
 
 import ListTH
-import MatrixMapNTH
+import MatrixMapNTH ()
 
 -- $(genMaps 10)
 

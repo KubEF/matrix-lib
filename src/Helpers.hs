@@ -6,6 +6,14 @@ isPowOf2 k = logBase 2 size == truncated
         size = fromIntegral k :: Double
         truncated = toEnum (truncate $ logBase 2 size) :: Double
 
+readSpecDouble :: String -> Double
+readSpecDouble a
+    | head a == '.' = read ('0' : a)
+    | head a == '-' && (a !! 1) == '.' = read ("-0" ++ tail a)
+    | head a == 'e' = read ('1' : a)
+    | head a == '-' && (a !! 1) == 'e' = read ("-1" ++ tail a)
+    | otherwise = read a
+
 takeFst :: (a, b, c) -> a
 takeFst (a, _, _) = a
 

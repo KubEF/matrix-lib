@@ -5,9 +5,7 @@ import Criterion.Main (defaultMain)
 import Data.List (unfoldr)
 import GHC.Word
 import GenQuadTreeTH (zipWithBinFunc4)
-import GenTH
 import Helpers
-import Matrix
 import ParseMTX
 import QuadTree
 import System.Random
