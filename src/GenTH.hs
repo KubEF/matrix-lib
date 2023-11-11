@@ -9,4 +9,4 @@ import MatrixMapNTH
 
 -- $(genMaps 10)
 
-$(genListToTupleFrom2ToK 62)
+$(genListToTupleFrom2ToK 10)

@@ -1,7 +1,11 @@
 module Main where
 
-import GenTH
+import GenQuadTreeTH
+import GenTH ()
+import Helpers
 import Matrix
+import ParseMTX (readFuncToMtxFormat)
+import QuadTree (QuadTree, map2QuadTree, toQuadTreeFromTableMatrix)
 import System.Exit as Exit
 import Test.HUnit (
     Counts (failures),
@@ -10,48 +14,43 @@ import Test.HUnit (
     runTestTT,
  )
 
--- шаблончики, чтобы проверять было проще
-list1 :: [[Maybe Integer]]
-list1 = [[Just 1, Just 2], [Just 3, Just 4]]
+add2QT :: QuadTree (Maybe Double) -> QuadTree (Maybe Double) -> QuadTree (Maybe Double)
+add2QT = map2QuadTree maybeAdd
 
-list2 :: [[Maybe Integer]]
-list2 = [[Nothing, Just 6], [Just 7, Just 8]]
+zipWithSum4 :: QuadTree (Maybe Double) -> QuadTree (Maybe Double) -> QuadTree (Maybe Double) -> QuadTree (Maybe Double) -> QuadTree (Maybe Double)
+zipWithSum4 quadTree1 quadTree2 quadTree3 quadTree4 =
+    quadTree1 `add2QT` quadTree2 `add2QT` quadTree3 `add2QT` quadTree4
 
-list3 :: [[Integer]]
-list3 = [[9, 10], [11, 12]]
+testFunc :: (Show a, Eq a) => (a -> a -> a) -> QuadTree a -> QuadTree a -> QuadTree a -> QuadTree a -> QuadTree a -> String -> Test
+testFunc func quadTree1 quadTree2 quadTree3 quadTree4 expectedRes text =
+    TestCase $ assertEqual text expectedRes actRes
+    where
+        actRes = zipWithBinFunc4 func quadTree1 quadTree2 quadTree3 quadTree4
 
-list4 :: [[Integer]]
-list4 = [[13, 14], [15, 16]]
-
-m1 :: Matrix (Maybe Integer)
-m1 = Matrix list1
-
-m2 :: Matrix (Maybe Integer)
-m2 = Matrix list2
-
-m3 :: Matrix Integer
-m3 = Matrix list3
-
-m4 :: Matrix Integer
-m4 = Matrix list4
-
-m5 :: Matrix Integer
-m5 = Matrix [[22, 24], [26, 28]]
-
-testSum :: Test
-testSum = TestCase $ assertEqual "should return \n[22, 24]\n[26, 28]" m5 (map2 (+) m3 m4)
-
-testId :: Test
-testId = TestCase $ assertEqual "should return \n[9, 10]\n[11,12]" m3 (map2 const m3 m4)
-
-tests :: Test
-tests = TestList [TestLabel "testSum" testSum, TestLabel "testId" testId]
-
--- prop_revapp :: (Eq a) => Matrix a -> Matrix a -> Bool
--- prop_revapp x y = map2 const x y == x
+wrapToMaybeQuadTree :: (Eq a) => Matrix a -> QuadTree (Maybe a)
+wrapToMaybeQuadTree matrix =
+    toQuadTreeFromTableMatrix $ sequenceA $ Just matrix
 
 main :: IO ()
 main = do
+    quadTree1 <- readFuncToMtxFormat "test/my1.mtx"
+    quadTree2 <- readFuncToMtxFormat "test/my2.mtx"
+    let expectedResAdd =
+            wrapToMaybeQuadTree $
+                Matrix
+                    [ [4.0, 12, 0, 0]
+                    , [0, 16, 0, 0]
+                    , [0, 0, 0, 0]
+                    , [8, 0, 0, 0]
+                    ]
+        expectedResSub =
+            wrapToMaybeQuadTree $
+                Matrix $
+                    replicate 4 (replicate 4 0.0)
+        testSubst = testFunc maybeSubtract quadTree2 quadTree1 quadTree1 quadTree1 expectedResSub "subtract to zero matrix"
+        testAdd = testFunc maybeAdd quadTree1 quadTree1 quadTree1 quadTree1 expectedResAdd "adds four equals matrix"
+        testEquals = testFunc maybeAdd quadTree1 quadTree2 quadTree1 quadTree2 (zipWithSum4 quadTree1 quadTree2 quadTree1 quadTree2) "equals of TH realization and map2 realization"
+        tests = TestList [testAdd, testSubst, testEquals]
     result <- runTestTT tests
     if failures result > 0 then Exit.exitFailure else Exit.exitSuccess
 

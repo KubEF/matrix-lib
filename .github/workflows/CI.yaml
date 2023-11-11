@@ -40,5 +40,3 @@ jobs:
         run: stack build --system-ghc --test --bench --no-run-tests --no-run-benchmarks
       - name: Run tests
         run: stack test
-      - name: Run benchmarks
-        run: stack bench
