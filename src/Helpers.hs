@@ -14,6 +14,9 @@ readSpecDouble a
     | head a == '-' && (a !! 1) == 'e' = read ("-1" ++ tail a)
     | otherwise = read a
 
+uncurry4 :: (t1 -> t2 -> t3 -> t4 -> t5) -> (t1, t2, t3, t4) -> t5
+uncurry4 f ~(x, y, z, w) = f x y z w
+
 takeFst :: (a, b, c) -> a
 takeFst (a, _, _) = a
 

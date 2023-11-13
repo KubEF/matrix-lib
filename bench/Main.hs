@@ -19,43 +19,48 @@ generateRndList n = take n (unfoldr (Just . genWord64) pureGen)
 add2QT :: QuadTree (Maybe Double) -> QuadTree (Maybe Double) -> QuadTree (Maybe Double)
 add2QT = map2QuadTree maybeAdd
 
-zipWithSum4 :: QuadTree (Maybe Double) -> QuadTree (Maybe Double) -> QuadTree (Maybe Double) -> QuadTree (Maybe Double) -> QuadTree (Maybe Double)
-zipWithSum4 quadTree1 quadTree2 quadTree3 quadTree4 =
+zipWithSum4
+    :: (QuadTree (Maybe Double), QuadTree (Maybe Double), QuadTree (Maybe Double), QuadTree (Maybe Double))
+    -> QuadTree (Maybe Double)
+zipWithSum4 (quadTree1, quadTree2, quadTree3, quadTree4) =
     quadTree1 `add2QT` quadTree2 `add2QT` quadTree3 `add2QT` quadTree4
+
+uncurriedZipWithBin
+    :: (QuadTree (Maybe Double), QuadTree (Maybe Double), QuadTree (Maybe Double), QuadTree (Maybe Double))
+    -> QuadTree (Maybe Double)
+uncurriedZipWithBin = uncurry4 (zipWithBinFunc4 maybeAdd)
+
 
 main :: IO ()
 main = do
-    putStrLn "no benches here for now"
-    m1 <- readFuncToMtxFormat "bench/1138_bus.mtx"
-    m2 <- readFuncToMtxFormat "bench/ex31.mtx"
-    m3 <- readFuncToMtxFormat "bench/meg4.mtx"
-    m4 <- readFuncToMtxFormat "bench/lp_cre_b.mtx"
-    m5 <- readFuncToMtxFormat "bench/mc2depi.mtx"
+    m1 <- readFuncToMtxFormat "bench/matrixes-for-benches/929901.mtx"
+    m2 <- readFuncToMtxFormat "bench/matrixes-for-benches/955128.mtx"
+    m3 <- readFuncToMtxFormat "bench/matrixes-for-benches/1000000.mtx"
+    m4 <- readFuncToMtxFormat "bench/matrixes-for-benches/1000005.mtx"
+    let input1 = (m3, m3, m3, m3)
+        input2 = (m1, m2, m3, m4)
+        input3 = (m1, m4, m1, m3)
+        input4 = (m4, m2, m3, m1)
     putStrLn ""
     defaultMain
         [ bgroup
-            "comparing of zipWithAdd4 function. Size: 1138"
-            [ bench "by TH" $ nf (zipWithBinFunc4 maybeAdd m1 m1 m1) m1
-            , bench "by map2 realization" $ nf (zipWithSum4 m1 m1 m1) m1
+            "comparing of zipWithAdd4 function: sum four equals matrixes"
+            [ bench "by TH" $ nf uncurriedZipWithBin input1
+            , bench "by map2" $ nf zipWithSum4 input1
             ]
         , bgroup
-            "comparing of zipWithAdd4 function. Size: 3909"
-            [ bench "by TH" $ nf (zipWithBinFunc4 maybeAdd m2 m2 m2) m2
-            , bench "by map2 realization" $ nf (zipWithSum4 m2 m2 m2) m2
+            "comparing of zipWithAdd4 function: sum m1 m2 m3 m4"
+            [ bench "by TH" $ nf uncurriedZipWithBin input2
+            , bench "by map2" $ nf zipWithSum4 input2
             ]
         , bgroup
-            "comparing of zipWithAdd4 function. Size: 5806"
-            [ bench "by TH" $ nf (zipWithBinFunc4 maybeAdd m3 m3 m3) m3
-            , bench "by map2 realization" $ nf (zipWithSum4 m3 m3 m3) m3
+            "comparing of zipWithAdd4 function: sum m1 m4 m1 m3"
+            [ bench "by TH" $ nf uncurriedZipWithBin input3
+            , bench "by map2" $ nf zipWithSum4 input3
             ]
         , bgroup
-            "comparing of zipWithAdd4 function. Size: 77137"
-            [ bench "by TH" $ nf (zipWithBinFunc4 maybeAdd m4 m4 m4) m4
-            , bench "by map2 realization" $ nf (zipWithSum4 m4 m4 m4) m4
-            ]
-        , bgroup
-            "comparing of zipWithAdd4 function. Size: 525825"
-            [ bench "by TH" $ nf (zipWithBinFunc4 maybeAdd m5 m5 m5) m5
-            , bench "by map2 realization" $ nf (zipWithSum4 m5 m5 m5) m5
+            "comparing of zipWithAdd4 function: sum m4 m2 m3 m1"
+            [ bench "by TH" $ nf uncurriedZipWithBin input4
+            , bench "by map2" $ nf zipWithSum4 input4
             ]
         ]
