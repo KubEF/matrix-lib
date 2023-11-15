@@ -2,8 +2,9 @@
 
 module QuadTreeTH where
 
-import Data.List (zip4)
-import Helpers (anagrams)
+import Data.List (zip4, zipWith4)
+import GenTH
+import Helpers
 import Language.Haskell.TH
 import QuadTree
 
@@ -41,15 +42,21 @@ leafWithoutArgs name = asP name [p|Leaf{}|]
 -- generate pattern of Leaf with given patterns args, for example
 -- leafWithArgs v1 s1 = (Leaf v1 s1)
 -- note that v1 and s1 are not names, so you have to wrap wishing names into pattern variables
-leafWithArgs :: (Quote m) => (m Pat, m Pat) -> m Pat
-leafWithArgs (v, s) = [p|Leaf $v $s|]
+leafWithArgsPat :: (Quote m) => (m Pat, m Pat) -> m Pat
+leafWithArgsPat (v, s) = [p|Leaf $v $s|]
+
+leafWithArgsExp :: (Quote m) => (m Exp, m Exp) -> m Exp
+leafWithArgsExp (v, s) = [|Leaf $v $s|]
 
 -- generate pattern of Node with given patterns args, for example
 -- nodeWithArgs (nw1, ne1, sw1, se1) = Node nw1 ne1 sw1 se1
 -- note that nw1 , ne1, sw1 ,se1 are not names, so you have to wrap it into pattern variables
 -- also note that this is fully curried function. So you can zip it with zip4 before using
-nodeWithArgs :: (Quote m) => (m Pat, m Pat, m Pat, m Pat) -> m Pat
-nodeWithArgs (nw, ne, sw, se) = [p|Node $nw $ne $sw $se|]
+nodeWithArgsPat :: (Quote m) => (m Pat, m Pat, m Pat, m Pat) -> m Pat
+nodeWithArgsPat (nw, ne, sw, se) = [p|Node $nw $ne $sw $se|]
+
+nodeWithArgsExp :: (Quote m) => (m Exp, m Exp, m Exp, m Exp) -> m Exp
+nodeWithArgsExp (nw, ne, sw, se) = [|Node $nw $ne $sw $se|]
 
 -- generate 'case (x1, ..., xn) of matches' expression by given expression vars, for example
 -- caseArgs [t1, t2, t3, t4] matches = case (t1, t2, t3, t4) of matches
@@ -80,11 +87,14 @@ zipArgsByBin func = foldl1 (\acc x -> infixE (Just acc) func (Just x))
 whereSizeDiv2 :: (Quote m) => Name -> m Exp -> m Dec
 whereSizeDiv2 s s1 = valD (varP s) (normalB [|$s1 `div` 2|]) []
 
-recAppl :: (Quote m) => m Exp -> m Exp -> [m Exp] -> [m Exp] -> m Exp -> m Exp
-recAppl myF f ns vs s = foldl (\acc x -> [|$acc $x|]) [|$myF $f|] listOfAll
-    where
-        leafs = map (\x -> [|Leaf $x $s|]) vs
-        listOfAll = ns ++ leafs
+recAppl :: (Quote m) => m Exp -> m Exp -> [m Exp] -> m Exp
+recAppl myF f = foldl (\acc x -> [|$acc $x|]) [|$myF $f|]
+
+anagramToExp :: (Quote m) => [[m Exp]] -> [m Exp]
+anagramToExp = map (\x -> if length x == 2 then leafWithArgsExp (listToTuple2 x) else nodeWithArgsExp (listToTuple4 x))
+
+anagramToPat :: [[Name]] -> [Q Pat]
+anagramToPat = map (\x -> if length x == 2 then leafWithArgsPat (listToTuple2 $ namesToPat x) else nodeWithArgsPat (listToTuple4 $ namesToPat x))
 
 genBinFunc :: Int -> Q [Dec]
 genBinFunc k = sequenceA [sigD name typ, funD name [cl1]]
@@ -102,12 +112,13 @@ genBinFunc k = sequenceA [sigD name typ, funD name [cl1]]
         sName = mkName "s"
         cl1 = do
             -- [(Leaf v1 s1), ..., (Leaf vk sk)] :: Pat
-            let leafsPat =
-                    zipWith (curry leafWithArgs) (namesToPat vNames) (namesToPat sNames)
+            let
+                leafsPat =
+                    zipWith (curry leafWithArgsPat) (namesToPat vNames) (namesToPat sNames)
                 -- [Node nw1 ne1 sw1 se1, ..., Node nwk nek swk sek] :: Pat
                 nodesPat =
                     map
-                        nodeWithArgs
+                        nodeWithArgsPat
                         ( zip4
                             (namesToPat nwNames)
                             (namesToPat neNames)
@@ -116,8 +127,13 @@ genBinFunc k = sequenceA [sigD name typ, funD name [cl1]]
                         )
                 -- f q1 ... qk :: Pat
                 mainPat = namesToPat (fName : qNames)
-                -- anagrams [l1, .., ln] [n1, .., n(k-n)]
-                anagramsNLeafs n = map tupP (anagrams (take n leafsPat) (take (k - n) nodesPat))
+                -- anagrams [[v1, s1], .., [vn, sn]] [[nw1, ne1, sw1, se1], .., [nw(k-n), ne(k-n), sw(k-n), se(k-n)]]
+                anagramsNLeafsName n =
+                    anagrams
+                        (take n (zipWith (\x y -> [x, y]) vNames sNames))
+                        (take (k - n) (zipWith4 (\x y z w -> [x, y, z, w]) nwNames neNames swNames seNames))
+
+                anagramNLeafsPat = tupP . anagramToPat
             -- if pattern have at least 1 Node and at least 1 Leaf, then generate body. Example with n Leafs and accordingly (k - n) Nodes
             {-
             reduce $
@@ -128,57 +144,59 @@ genBinFunc k = sequenceA [sigD name typ, funD name [cl1]]
                     (zipWithBinFuncK f se1 .. se(k-n) (Leaf v1 s) ... (Leaf vn s )
             -}
             -- s is common size of leafs that equals s1 div 2 (s1 == s2 == ... = sn)
-            let bodyToCenter n =
+            -- ord of leafs and nodes are important
+            let bodyToCenter anagram =
                     [|
                         reduce $
                             Node
                                 $( recAppl
                                     (varE name)
                                     (varE fName)
-                                    (namesToExp $ take (k - n) nwNames)
-                                    (namesToExp $ take n vNames)
-                                    sExp
+                                    (map (\x -> if length x == 2 then [|Leaf $(varE $ head x) $(sExp)|] else varE $ head x) anagram)
                                  )
                                 $( recAppl
                                     (varE name)
                                     (varE fName)
-                                    (namesToExp $ take (k - n) neNames)
-                                    (namesToExp $ take n vNames)
-                                    sExp
+                                    (map (\x -> if length x == 2 then [|Leaf $(varE $ head x) $(sExp)|] else varE $ x !! 1) anagram)
                                  )
                                 $( recAppl
                                     (varE name)
                                     (varE fName)
-                                    (namesToExp $ take (k - n) swNames)
-                                    (namesToExp $ take n vNames)
-                                    sExp
+                                    (map (\x -> if length x == 2 then [|Leaf $(varE $ head x) $(sExp)|] else varE $ x !! 2) anagram)
                                  )
                                 $( recAppl
                                     (varE name)
                                     (varE fName)
-                                    (namesToExp $ take (k - n) seNames)
-                                    (namesToExp $ take n vNames)
-                                    sExp
+                                    (map (\x -> if length x == 2 then [|Leaf $(varE $ head x) $(sExp)|] else varE $ x !! 3) anagram)
                                  )
                         |]
-                -- generate match at least 1 Nodes and at least one Leafs. anagrams are all combinations of this pattern, right body and block
-                {-
-                where s = s1 div 2
-                -}
-            let matchesToCenter n anagram =
+            -- generate match at least 1 Nodes and at least one Leafs. anagrams are all combinations of this pattern, right body and block
+            {-
+            where s = s1 div 2
+            -}
+            let matchesToCenter anagram =
                     match
-                        anagram
-                        (normalB $ bodyToCenter n)
+                        (anagramNLeafsPat anagram)
+                        (normalB $ bodyToCenter anagram)
                         [whereSizeDiv2 sName (varE $ head sNames)]
                         :: Q Match
                 -- generate all cases with that match
-                listOfCenterMatches = concat [map (matchesToCenter n) (anagramsNLeafs n) | n <- [1 .. k - 1]]
+                listOfCenterMatches = concat [map matchesToCenter (anagramsNLeafsName n) | n <- [1 .. k - 1]]
                 elseBodyExp = [|error "different size of leafs"|]
                 thenBodyExp = [|Leaf ($(zipArgsByBin (varE fName) (namesToExp vNames))) ($(varE $ head sNames))|]
+                bodyAllNodes =
+                    [|
+                        reduce $
+                            Node
+                                $(foldl (\acc x -> [|$acc $(varE x)|]) [|$(varE name) $(varE fName)|] nwNames)
+                                $(foldl (\acc x -> [|$acc $(varE x)|]) [|$(varE name) $(varE fName)|] neNames)
+                                $(foldl (\acc x -> [|$acc $(varE x)|]) [|$(varE name) $(varE fName)|] swNames)
+                                $(foldl (\acc x -> [|$acc $(varE x)|]) [|$(varE name) $(varE fName)|] seNames)
+                        |]
                 matchAllNodes =
                     match
                         (tupP nodesPat)
-                        (normalB $ bodyToCenter 0)
+                        (normalB bodyAllNodes)
                         []
                 matchAllLeafs =
                     match
@@ -192,3 +210,127 @@ genBinFunc k = sequenceA [sigD name typ, funD name [cl1]]
             let functionSig = makeFunc (replicate 3 a)
                 quadTreesList = replicate (k + 1) [t|QuadTree $a|]
             forallT [] (sequence [appT (conT ''Eq) a]) (makeFunc (functionSig : quadTreesList)) :: Q Type
+
+aplNFuncs :: (Quote m) => m Exp -> [m Exp] -> [m Exp] -> m Exp
+aplNFuncs name funcs anagram = foldl (\acc x -> [|$acc $x|]) [|$name|] (funcs ++ anagram)
+
+mapArgsByFuncs :: (Quote m) => [m Exp] -> [m Exp] -> m Exp
+mapArgsByFuncs funcs args = foldl (\acc x -> infixE (Just acc) (snd x) (Just $ fst x)) (head args) (zip (tail args) funcs)
+
+genBinKFunc :: Int -> Q [Dec]
+genBinKFunc k = sequenceA [sigD name typ, funD name [cl1]]
+    where
+        name = mkName $ "zipWith" ++ show k ++ "Funcs"
+        vNames = numberedNames "v" k
+        sNames = numberedNames "s" k
+        nwNames = numberedNames "nw" k
+        neNames = numberedNames "ne" k
+        swNames = numberedNames "sw" k
+        seNames = numberedNames "se" k
+        qNames = numberedNames "q" k
+        fNames = numberedNames "f" (k - 1)
+        sExp = varE $ mkName "s"
+        sName = mkName "s"
+        cl1 = do
+            -- [(Leaf v1 s1), ..., (Leaf vk sk)] :: Pat
+            let
+                leafsPat =
+                    zipWith (curry leafWithArgsPat) (namesToPat vNames) (namesToPat sNames)
+                -- [Node nw1 ne1 sw1 se1, ..., Node nwk nek swk sek] :: Pat
+                nodesPat =
+                    map
+                        nodeWithArgsPat
+                        ( zip4
+                            (namesToPat nwNames)
+                            (namesToPat neNames)
+                            (namesToPat swNames)
+                            (namesToPat seNames)
+                        )
+                -- f1 ... f(k-1) q1 ... qk :: Pat
+                mainPat = namesToPat (fNames ++ qNames)
+                -- anagrams [[v1, s1], .., [vn, sn]] [[nw1, ne1, sw1, se1], .., [nw(k-n), ne(k-n), sw(k-n), se(k-n)]]
+                anagramsNLeafsName n =
+                    anagrams
+                        (take n (zipWith (\x y -> [x, y]) vNames sNames))
+                        (take (k - n) (zipWith4 (\x y z w -> [x, y, z, w]) nwNames neNames swNames seNames))
+
+                anagramNLeafsPat = tupP . anagramToPat
+            -- if pattern have at least 1 Node and at least 1 Leaf, then generate body. Example with n Leafs and accordingly (k - n) Nodes
+            {-
+            reduce $
+                Node
+                    (quadTreeMapK f1 ... f(k-1) nw1 .. nw(k-n) (Leaf v1 s) ... (Leaf vn s )
+                    (quadTreeMapK f1 ... f(k-1) ne1 .. ne(k-n) (Leaf v1 s) ... (Leaf vn s )
+                    (quadTreeMapK f1 ... f(k-1) sw1 .. sw(k-n) (Leaf v1 s) ... (Leaf vn s )
+                    (quadTreeMapK f1 ... f(k-1) se1 .. se(k-n) (Leaf v1 s) ... (Leaf vn s )
+            -}
+            -- s is common size of leafs that equals s1 div 2 (s1 == s2 == ... = sn)
+            -- ord of leafs and nodes are important
+            let bodyToCenter anagram =
+                    [|
+                        reduce $
+                            Node
+                                $( aplNFuncs
+                                    (varE name)
+                                    (namesToExp fNames)
+                                    (map (\x -> if length x == 2 then [|Leaf $(varE $ head x) $(sExp)|] else varE $ head x) anagram)
+                                 )
+                                $( aplNFuncs
+                                    (varE name)
+                                    (namesToExp fNames)
+                                    (map (\x -> if length x == 2 then [|Leaf $(varE $ head x) $(sExp)|] else varE $ x !! 1) anagram)
+                                 )
+                                $( aplNFuncs
+                                    (varE name)
+                                    (namesToExp fNames)
+                                    (map (\x -> if length x == 2 then [|Leaf $(varE $ head x) $(sExp)|] else varE $ x !! 2) anagram)
+                                 )
+                                $( aplNFuncs
+                                    (varE name)
+                                    (namesToExp fNames)
+                                    (map (\x -> if length x == 2 then [|Leaf $(varE $ head x) $(sExp)|] else varE $ x !! 3) anagram)
+                                 )
+                        |]
+            -- generate match at least 1 Nodes and at least one Leafs. anagrams are all combinations of this pattern, right body and block
+            {-
+            where s = s1 div 2
+            -}
+            let matchesToCenter anagram =
+                    match
+                        (anagramNLeafsPat anagram)
+                        (normalB $ bodyToCenter anagram)
+                        [whereSizeDiv2 sName (varE $ head sNames)]
+                        :: Q Match
+                -- generate all cases with that match
+                listOfCenterMatches = concat [map matchesToCenter (anagramsNLeafsName n) | n <- [1 .. k - 1]]
+                elseBodyExp = [|error "different size of leafs"|]
+                thenBodyExp = [|Leaf $(mapArgsByFuncs (namesToExp fNames) (namesToExp vNames)) $(varE $ head sNames)|]
+                bodyAllNodes =
+                    [|
+                        reduce $
+                            Node
+                                $(foldl (\acc x -> [|$acc $(varE x)|]) [|$(varE name)|] (fNames ++ nwNames))
+                                $(foldl (\acc x -> [|$acc $(varE x)|]) [|$(varE name)|] (fNames ++ neNames))
+                                $(foldl (\acc x -> [|$acc $(varE x)|]) [|$(varE name)|] (fNames ++ swNames))
+                                $(foldl (\acc x -> [|$acc $(varE x)|]) [|$(varE name)|] (fNames ++ seNames))
+                        |]
+                matchAllNodes =
+                    match
+                        (tupP nodesPat)
+                        (normalB bodyAllNodes)
+                        []
+                matchAllLeafs =
+                    match
+                        (tupP leafsPat)
+                        (normalB $ ite thenBodyExp elseBodyExp (namesToExp sNames))
+                        []
+                mainBody = caseArgs (namesToExp qNames) (matchAllNodes : matchAllLeafs : listOfCenterMatches)
+            clause mainPat (normalB mainBody) []
+        typ = do
+            let tTypes = namesToType $ numberedNames "t" (2 * k - 2)
+                a = varT $ mkName "a"
+                functionsSig = map makeFunc (triplePart (tTypes ++ [a])) :: [Q Type]
+                quadTreesList =
+                    [[t|QuadTree $t|] | n <- lsEvenWithOne (k + 1), let t = varT $ mkName $ "t" ++ show n]
+                        ++ [[t|QuadTree $a|]]
+            forallT [] (sequence [appT (conT ''Eq) a]) (makeFunc (functionsSig ++ quadTreesList))

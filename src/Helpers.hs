@@ -50,3 +50,15 @@ anagrams l1 l2 = case (l1, l2) of
     (list1, []) -> map (head list1 :) (anagrams (tail list1) [])
     ([], list2) -> map (head list2 :) (anagrams [] (tail list2))
     (list1, list2) -> map (head list1 :) (anagrams (tail list1) list2) ++ map (head list2 :) (anagrams list1 (tail list2))
+
+tupleToList4 :: (a, a, a, a) -> [a]
+tupleToList4 (a, b, c, d) = [a, b, c, d]
+
+tupleToList2 :: (a, a) -> [a]
+tupleToList2 (a, b) = [a, b]
+
+triplePart :: [a] -> [[a]]
+triplePart l = [[l !! n, l !! (n + 1), l !! (n + 2)] | n <- [0, 2 .. (length l - 3)]]
+
+lsEvenWithOne :: (Num a, Enum a) => a -> [a]
+lsEvenWithOne n = 1 : [2, 4 .. n]

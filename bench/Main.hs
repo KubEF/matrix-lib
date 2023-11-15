@@ -30,7 +30,6 @@ uncurriedZipWithBin
     -> QuadTree (Maybe Double)
 uncurriedZipWithBin = uncurry4 (zipWithBinFunc4 maybeAdd)
 
-
 main :: IO ()
 main = do
     m1 <- readFuncToMtxFormat "bench/matrixes-for-benches/929901.mtx"
@@ -41,10 +40,9 @@ main = do
         input2 = (m1, m2, m3, m4)
         input3 = (m1, m4, m1, m3)
         input4 = (m4, m2, m3, m1)
-    putStrLn ""
     defaultMain
         [ bgroup
-            "comparing of zipWithAdd4 function: sum four equals matrixes"
+            "comparing of zipWithAdd4 function: sum four equals matrixes 1"
             [ bench "by TH" $ nf uncurriedZipWithBin input1
             , bench "by map2" $ nf zipWithSum4 input1
             ]
