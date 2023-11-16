@@ -109,3 +109,46 @@ map2QuadTree f q1 q2 = case (q1, q2) of
                 (map2QuadTree f se (Leaf v1 s))
         where
             s = s1 `div` 2
+
+scalarMul :: (a -> a -> a) -> a -> Int -> a
+scalarMul addFunc a s = foldl1 addFunc (replicate s a)
+
+multiplyQT :: (Eq t) => (t -> t -> t) -> (t -> t -> t) -> QuadTree t -> QuadTree t -> QuadTree t
+multiplyQT mulFunc addFunc q1 q2 = case (q1, q2) of
+    (Leaf v1 s1, Leaf v2 s2) ->
+        let mul = v1 `mulFunc` v2
+        in  if s1 == s2
+                then
+                    if s1 == 1
+                        then Leaf mul s1
+                        else Leaf (scalarMul addFunc mul s1) s1
+                else error "incorrect input: you cannot get leafs with different sizes"
+    (Node nw1 ne1 sw1 se1, Node nw2 ne2 sw2 se2) ->
+        reduce $
+            Node
+                (map2QuadTree addFunc (innerMul nw1 nw2) (innerMul ne1 sw2))
+                (map2QuadTree addFunc (innerMul nw1 ne2) (innerMul ne1 se2))
+                (map2QuadTree addFunc (innerMul sw1 nw2) (innerMul se1 sw2))
+                (map2QuadTree addFunc (innerMul sw1 ne2) (innerMul se1 se2))
+    (Leaf v s1, Node nw ne sw se) ->
+        reduce $
+            Node
+                (map2QuadTree addFunc (innerMul l nw) (innerMul l sw))
+                (map2QuadTree addFunc (innerMul l ne) (innerMul l se))
+                (map2QuadTree addFunc (innerMul l nw) (innerMul l sw))
+                (map2QuadTree addFunc (innerMul l ne) (innerMul l se))
+        where
+            s = s1 `div` 2
+            l = Leaf v s
+    (Node nw ne sw se, Leaf v s1) ->
+        reduce $
+            Node
+                (map2QuadTree addFunc (innerMul nw l) (innerMul sw l))
+                (map2QuadTree addFunc (innerMul ne l) (innerMul se l))
+                (map2QuadTree addFunc (innerMul nw l) (innerMul sw l))
+                (map2QuadTree addFunc (innerMul ne l) (innerMul se l))
+        where
+            s = s1 `div` 2
+            l = Leaf v s
+    where
+        innerMul a b = multiplyQT mulFunc addFunc a b

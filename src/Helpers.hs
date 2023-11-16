@@ -36,12 +36,26 @@ maybeAdd x y = case (x, y) of
     (Just u, Nothing) -> Just u
     (Nothing, Just v) -> Just v
 
+maybeMul :: (Num a) => Maybe a -> Maybe a -> Maybe a
+maybeMul x y = case (x, y) of
+    (Just u, Just v) -> Just $ u * v
+    (Nothing, Nothing) -> Just 0
+    (Just _, Nothing) -> Just 0
+    (Nothing, Just _) -> Just 0
+
 maybeSubtract :: (Num a) => Maybe a -> Maybe a -> Maybe a
 maybeSubtract x y = case (x, y) of
     (Just u, Just v) -> Just $ u - v
     (Nothing, Nothing) -> Just 0
     (Just u, Nothing) -> Just u
     (Nothing, Just v) -> Just (-v)
+
+maybeConcat :: (Num a) => Maybe a -> Maybe a -> Maybe a
+maybeConcat x y = case (x, y) of
+    (Just u, Just v) -> Just $ (10 * u) + v
+    (Nothing, Nothing) -> Just 0
+    (Just u, Nothing) -> Just $ 10 * u
+    (Nothing, Just v) -> Just v
 
 -- перестановки с повторениями: для наборов [a1, a2] [b1, b2, b3] вернёт [[a1,a2,b1,b2],[a1,b1,a2,b2],[a1,b1,b2,a2],[b1,a1,a2,b2],[b1,a1,b2,a2],[b1,b2,a1,a2]]
 anagrams :: [a] -> [a] -> [[a]]
