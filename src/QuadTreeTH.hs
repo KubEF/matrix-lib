@@ -334,3 +334,50 @@ genBinKFunc k = sequenceA [sigD name typ, funD name [cl1]]
                     [[t|QuadTree $t|] | n <- lsEvenWithOne (k + 1), let t = varT $ mkName $ "t" ++ show n]
                         ++ [[t|QuadTree $a|]]
             forallT [] (sequence [appT (conT ''Eq) a]) (makeFunc (functionsSig ++ quadTreesList))
+
+genMulWithElement :: Q [Dec]
+genMulWithElement =
+    [d|
+        multiplyWithElementsFunc :: (Eq a, Eq t4) => (t4 -> t4 -> t4) -> (t4 -> t4 -> t4) -> (t4 -> t4 -> a) -> QuadTree.QuadTree t4 -> QuadTree.QuadTree t4 -> QuadTree.QuadTree t4 -> QuadTree.QuadTree a
+        multiplyWithElementsFunc mulFunc addFunc elementsFunc q1 q2 q3 = case (q1, q2) of
+            (Leaf v1 s1, Leaf v2 s2) ->
+                let mul = v1 `mulFunc` v2
+                in  if s1 == s2
+                        then map2QuadTree elementsFunc (Leaf (scalarMul addFunc mul s1) s1) q3
+                        else error "incorrect input: you cannot get leafs with different sizes"
+            (Node nw1 ne1 sw1 se1, Node nw2 ne2 sw2 se2) ->
+                reduce $
+                    Node
+                        ($(varE $ mkName "zipWith3Funcs") addFunc elementsFunc (innerMul nw1 nw2) (innerMul ne1 sw2) q3One)
+                        ($(varE $ mkName "zipWith3Funcs") addFunc elementsFunc (innerMul nw1 ne2) (innerMul ne1 se2) q3Two)
+                        ($(varE $ mkName "zipWith3Funcs") addFunc elementsFunc (innerMul sw1 nw2) (innerMul se1 sw2) q3Three)
+                        ($(varE $ mkName "zipWith3Funcs") addFunc elementsFunc (innerMul sw1 ne2) (innerMul se1 se2) q3Four)
+            (Leaf v s1, Node nw ne sw se) ->
+                reduce $
+                    Node
+                        ($(varE $ mkName "zipWith3Funcs") addFunc elementsFunc (innerMul l nw) (innerMul l sw) q3One)
+                        ($(varE $ mkName "zipWith3Funcs") addFunc elementsFunc (innerMul l ne) (innerMul l se) q3Two)
+                        ($(varE $ mkName "zipWith3Funcs") addFunc elementsFunc (innerMul l nw) (innerMul l sw) q3Three)
+                        ($(varE $ mkName "zipWith3Funcs") addFunc elementsFunc (innerMul l ne) (innerMul l se) q3Four)
+                where
+                    s = s1 `div` 2
+                    l = Leaf v s
+            (Node nw ne sw se, Leaf v s1) ->
+                reduce $
+                    Node
+                        ($(varE $ mkName "zipWith3Funcs") addFunc elementsFunc (innerMul nw l) (innerMul sw l) q3One)
+                        ($(varE $ mkName "zipWith3Funcs") addFunc elementsFunc (innerMul ne l) (innerMul se l) q3Two)
+                        ($(varE $ mkName "zipWith3Funcs") addFunc elementsFunc (innerMul nw l) (innerMul sw l) q3Three)
+                        ($(varE $ mkName "zipWith3Funcs") addFunc elementsFunc (innerMul ne l) (innerMul se l) q3Four)
+                where
+                    s = s1 `div` 2
+                    l = Leaf v s
+            where
+                innerMul = multiplyQT mulFunc addFunc
+                (q3One, q3Two, q3Three, q3Four) =
+                    case q3 of
+                        Node nw3 ne3 sw3 se3 -> (nw3, ne3, sw3, se3)
+                        Leaf v3 s3 -> (Leaf v3 s, Leaf v3 s, Leaf v3 s, Leaf v3 s)
+                            where
+                                s = s3 `div` 2
+        |]

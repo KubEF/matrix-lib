@@ -5,8 +5,9 @@
 
 module GenQuadTreeTH where
 
-import QuadTreeTH (genBinFunc, genBinKFunc)
+import QuadTreeTH (genBinFunc, genBinKFunc, genMulWithElement)
 
 $(genBinFunc 4)
 
 $(genBinKFunc 3)
+$(genMulWithElement)

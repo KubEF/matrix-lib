@@ -103,10 +103,10 @@ map2QuadTree f q1 q2 = case (q1, q2) of
     (Leaf v1 s1, Node nw ne sw se) ->
         reduce $
             Node
-                (map2QuadTree f nw (Leaf v1 s))
-                (map2QuadTree f ne (Leaf v1 s))
-                (map2QuadTree f sw (Leaf v1 s))
-                (map2QuadTree f se (Leaf v1 s))
+                (map2QuadTree f (Leaf v1 s) nw)
+                (map2QuadTree f (Leaf v1 s) ne)
+                (map2QuadTree f (Leaf v1 s) sw)
+                (map2QuadTree f (Leaf v1 s) se)
         where
             s = s1 `div` 2
 
@@ -151,4 +151,10 @@ multiplyQT mulFunc addFunc q1 q2 = case (q1, q2) of
             s = s1 `div` 2
             l = Leaf v s
     where
-        innerMul a b = multiplyQT mulFunc addFunc a b
+        innerMul = multiplyQT mulFunc addFunc
+
+idQuadTree :: Int -> QuadTree (Maybe Double)
+idQuadTree = Leaf (Just 1.0)
+
+nulQuadTree :: Int -> QuadTree (Maybe Double)
+nulQuadTree = Leaf (Just 0.0)

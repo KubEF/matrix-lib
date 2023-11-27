@@ -1,11 +1,12 @@
 module Main where
 
 import GenQuadTreeTH
+import GenQuadTreeTH (multiplyWithElementsFunc)
 import GenTH ()
 import Helpers
 import Matrix
 import ParseMTX (readFuncToMtxFormat)
-import QuadTree (QuadTree, map2QuadTree, toQuadTreeFromTableMatrix)
+import QuadTree (QuadTree, map2QuadTree, multiplyQT, toQuadTreeFromTableMatrix)
 import System.Exit as Exit
 import Test.HUnit (
     Counts (failures),
@@ -35,6 +36,7 @@ main :: IO ()
 main = do
     quadTree1 <- readFuncToMtxFormat "test/my1.mtx"
     quadTree2 <- readFuncToMtxFormat "test/my2.mtx"
+    quadTree3 <- readFuncToMtxFormat "test/my3.mtx"
     let expectedResAdd =
             wrapToMaybeQuadTree $
                 Matrix
@@ -47,10 +49,21 @@ main = do
             wrapToMaybeQuadTree $
                 Matrix $
                     replicate 4 (replicate 4 0.0)
+        expectedResConcat =
+            wrapToMaybeQuadTree $
+                Matrix
+                    [ [1111, 3222, 0.0, 0]
+                    , [999, 4000, 0, 0]
+                    , [0, 0, 0, 0]
+                    , [2000, 0, 0, 444]
+                    ]
+        expectedResMul = map2QuadTree maybeConcat (multiplyQT maybeMul maybeAdd quadTree1 quadTree2) quadTree3
         testSubst = testFunc maybeSubtract quadTree2 quadTree1 quadTree1 quadTree1 expectedResSub "subtract to zero matrix"
         testAdd = testFunc maybeAdd quadTree1 quadTree1 quadTree1 quadTree1 expectedResAdd "adds four equals matrix"
         testEquals = testFunc maybeAdd quadTree1 quadTree2 quadTree1 quadTree2 (zipWithSum4 quadTree1 quadTree2 quadTree1 quadTree2) "equals of TH realization and map2 realization"
-        tests = TestList [testAdd, testSubst, testEquals]
+        testConcat = testFunc maybeConcat quadTree1 quadTree3 quadTree3 quadTree3 expectedResConcat "concat four matrix m1 m3 m3 m3 from my1.mtx and my3.mtx"
+        testMultiplyWithElementsFunc = TestCase $ assertEqual "multiply with apply elements func after" expectedResMul (multiplyWithElementsFunc maybeMul maybeAdd maybeConcat quadTree1 quadTree2 quadTree3)
+        tests = TestList [testAdd, testSubst, testEquals, testConcat, testMultiplyWithElementsFunc]
     result <- runTestTT tests
     if failures result > 0 then Exit.exitFailure else Exit.exitSuccess
 

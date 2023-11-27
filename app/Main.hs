@@ -4,8 +4,12 @@
 
 module Main where
 
-import GenTH ()
-import Matrix ()
+import GenQuadTreeTH
+import GenTH
+import Helpers
+import Matrix
+import ParseMTX
+import QuadTree
 
 main :: IO ()
 main = putStrLn "HI"

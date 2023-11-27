@@ -4,7 +4,7 @@ import Criterion
 import Criterion.Main (defaultMain)
 import Data.List (unfoldr)
 import GHC.Word
-import GenQuadTreeTH (zipWithBinFunc4)
+import GenQuadTreeTH (multiplyWithElementsFunc, zipWithBinFunc4)
 import Helpers
 import ParseMTX
 import QuadTree
@@ -29,6 +29,12 @@ uncurriedZipWithBin
     :: (QuadTree (Maybe Double), QuadTree (Maybe Double), QuadTree (Maybe Double), QuadTree (Maybe Double))
     -> QuadTree (Maybe Double)
 uncurriedZipWithBin = uncurry4 (zipWithBinFunc4 maybeAdd)
+
+uncurriedConsMulWithElementsFunc :: (Eq a, Num a) => (QuadTree (Maybe a), QuadTree (Maybe a), QuadTree (Maybe a)) -> QuadTree (Maybe a)
+uncurriedConsMulWithElementsFunc (q1, q2, q3) = map2QuadTree maybeConcat (multiplyQT maybeMul maybeAdd q1 q2) q3
+
+uncurriedMulWithElementsFunc :: (Eq a, Num a) => (QuadTree (Maybe a), QuadTree (Maybe a), QuadTree (Maybe a)) -> QuadTree (Maybe a)
+uncurriedMulWithElementsFunc (q1, q2, q3) = multiplyWithElementsFunc maybeMul maybeAdd maybeConcat q1 q2 q3
 
 main :: IO ()
 main = do
@@ -60,5 +66,10 @@ main = do
             "comparing of zipWithAdd4 function: sum m4 m2 m3 m1"
             [ bench "by TH" $ nf uncurriedZipWithBin input4
             , bench "by map2" $ nf zipWithSum4 input4
+            ]
+        , bgroup
+            "comparing of multiply and applying elements function: m1 * m2 `concat` m3"
+            [ bench "with zipWith3" $ nf uncurriedMulWithElementsFunc (m1, m2, m3)
+            , bench "consistently" $ nf uncurriedConsMulWithElementsFunc (m1, m2, m3)
             ]
         ]

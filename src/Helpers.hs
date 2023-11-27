@@ -17,6 +17,9 @@ readSpecDouble a
 uncurry4 :: (t1 -> t2 -> t3 -> t4 -> t5) -> (t1, t2, t3, t4) -> t5
 uncurry4 f ~(x, y, z, w) = f x y z w
 
+uncurry3 :: (t1 -> t2 -> t3 -> t4) -> (t1, t2, t3) -> t4
+uncurry3 f ~(x, y, z) = f x y z
+
 takeFst :: (a, b, c) -> a
 takeFst (a, _, _) = a
 
