@@ -40,3 +40,16 @@ jobs:
         run: stack build --system-ghc --test --bench --no-run-tests --no-run-benchmarks
       - name: Run tests
         run: stack test
+  hlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: "Set up HLint"
+        uses: haskell/actions/hlint-setup@v2
+
+      - name: "Run HLint"
+        uses: haskell/actions/hlint-run@v2
+        with:
+          path: src/
+          fail-on: warning

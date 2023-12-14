@@ -77,5 +77,7 @@ tupleToList2 (a, b) = [a, b]
 triplePart :: [a] -> [[a]]
 triplePart l = [[l !! n, l !! (n + 1), l !! (n + 2)] | n <- [0, 2 .. (length l - 3)]]
 
-lsEvenWithOne :: (Num a, Enum a) => a -> [a]
-lsEvenWithOne n = 1 : [2, 4 .. n]
+lsEvenWithOne :: (Integral a) => a -> [a]
+lsEvenWithOne n
+    | even n = 1 : [2, 4 .. n]
+    | otherwise = 1 : [2, 4 .. n + 1]
